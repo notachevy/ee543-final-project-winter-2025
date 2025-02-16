@@ -63,7 +63,7 @@ class robot_controller():
 
 
         #define the serial communication parameter
-        self.com_port = 'COM3' # change it if needed
+        self.com_port = 'COM6' # change it if needed
         self.com_baudrate = 115200 #bps
         self.com_frequency = 30 #Hz
         
