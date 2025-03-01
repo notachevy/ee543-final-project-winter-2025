@@ -15,6 +15,7 @@ import keyboard
 import sys, os
 from robot_controller import robot_controller
 
+
 def print_manu():
     print('  ')
     print('-----------------------------------------')
@@ -115,15 +116,13 @@ while working==1:
         
     elif input_key == '5':
         print_no_newline(" Grasper Open....                  ")
-        RC.gripper_open()
-        # goals = RC.robot_homing_joint_poses.copy()
-        # command = True
+        RC.gripper_set_percentage(0)
+
 
     elif input_key == 't':
         print_no_newline(" Grasper Close....                  ")
-        RC.gripper_close()
-        # goals = RC.robot_homing_joint_poses.copy()
-        # command = True
+        RC.gripper_set_percentage(100)
+
 
     else:
         print_no_newline(' Unknown command             ')

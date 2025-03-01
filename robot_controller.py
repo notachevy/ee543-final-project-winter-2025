@@ -57,13 +57,14 @@ class robot_controller():
         self.servo_pulse_max = 440 #+90 for mg996R, This is the 'maximum' pulse length count (out of 4096)
         self.servo_pulse_min = 70 #-90 for mg996R, This is the 'minimum' pulse length count (out of 4096)
 
-        #here defind the operating parameters for magnetic gripper
-        self.gripper_pulse_close = 4095 #This is the pulse length count (out of 4096) of 100% duty cycle
-        self.gripper_pulse_open = 0     #This is the pulse length count (out of 4096) of 0% duty cycle
+        # Here define the operating parameters for sliding gripper
+        # Slider gripper is also controlled by an MG996R servo motor
+        self.gripper_open_angle = 0 # degree
+        self.gripper_close_angle = -90 # degree
 
 
         #define the serial communication parameter
-        self.com_port = 'COM6' # change it if needed
+        self.com_port = 'COM3' # change it if needed
         self.com_baudrate = 115200 #bps
         self.com_frequency = 30 #Hz
         
@@ -234,54 +235,44 @@ class robot_controller():
                 dur = time.time() - start
                 time.sleep(np.clip((1/self.com_frequency)-dur-0.005, 0, (1/self.com_frequency)))#50Hz
 
-    # The function below control the end effector
-    def gripper_open(self):
-        #modify the robot state
-        self.robotstate_gripper_close = False
+        # The function below control the end effector using the servo motor position
+    # 0 degree means the gripper is fully opened
+    # -90 degree menas the gripper is fully closed
+    def gripper_set_angle(self, angle):
+        # Clip the angle within operating range
+        angle = np.clip(angle, self.gripper_close_angle, self.gripper_open_angle)
 
-        #send out the command
-        #convert the joint_pose to pulse length
+        # Convert angle to pulse length
+        pulse_length = self.angle_to_pulse_length(angle)
+        
+        # Store gripper angle
+        self.robotstate_gripper_angle = angle
+
+        # Send the pulse length command to the gripper
         joint_pulse_lengthes = self.angle_to_pulse_length(self.robotstate_joint_poses)
 
-        #add one more byte in the pulse length array to as gripper command
-        if self.robotstate_gripper_close:
-            joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_pulse_close)
-        else:
-            joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_pulse_open)
-        # print(joint_pulse_lengthes)
-        numbers = self.pulse_length_to_byte(joint_pulse_lengthes)
-        # print(numbers)   
+        # Add gripper angle to the pulse length array
+        joint_pulse_lengthes = np.append(joint_pulse_lengthes, pulse_length)
 
-        # Poll for acknowledgement
+        # Convert to bytes and send
+        numbers = self.pulse_length_to_byte(joint_pulse_lengthes)
+        
+        # Poll for acknowledgment
         while self.ser.in_waiting == 0:
             continue
 
-        # Send data if acknowledgement received
+        # Send data if acknowledgment received
         if self.ser.read() == b'A':
             self.ser.write(numbers)
             self.ser.flush()
 
-    def gripper_close(self):
-        #modify the robot state
-        self.robotstate_gripper_close = True
-        #send out the command
-        #convert the joint_pose to pulse length
-        joint_pulse_lengthes = self.angle_to_pulse_length(self.robotstate_joint_poses)
+    # The function below control the end effector using the percentage
+    # 0% means the gripper is fully opened
+    # 100% menas the gripper is fully closed
+    def gripper_set_percentage(self, percentage):
+        percentage = np.clip(percentage, 0, 100)
 
-        #add one more byte in the pulse length array to as gripper command
-        if self.robotstate_gripper_close:
-            joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_pulse_close)
-        else:
-            joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_pulse_open)
-        # print(joint_pulse_lengthes)
-        numbers = self.pulse_length_to_byte(joint_pulse_lengthes)
-        # print(numbers)   
+        # convert the percentage into angle
+        angle = percentage * (self.gripper_close_angle - self.gripper_open_angle) / 100
 
-        # Poll for acknowledgement
-        while self.ser.in_waiting == 0:
-            continue
-
-        # Send data if acknowledgement received
-        if self.ser.read() == b'A':
-            self.ser.write(numbers)
-            self.ser.flush()
+        self.gripper_set_angle(angle)
