@@ -64,7 +64,7 @@ class robot_controller():
 
 
         #define the serial communication parameter
-        self.com_port = 'COM3' # change it if needed
+        self.com_port = 'COM6' # change it if needed
         self.com_baudrate = 115200 #bps
         self.com_frequency = 30 #Hz
         
@@ -156,7 +156,7 @@ class robot_controller():
 
         # compose command
         joint_pulse_lengthes = self.angle_to_pulse_length(self.robotstate_joint_poses)
-        joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_pulse_open)
+        joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_open_angle)
         # print(joint_pulse_lengthes)
         numbers = self.pulse_length_to_byte(joint_pulse_lengthes)
         # print(numbers)
@@ -217,9 +217,9 @@ class robot_controller():
 
             #add one more byte in the pulse length array to as gripper command
             if self.robotstate_gripper_close:
-                joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_pulse_close)
+                joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_close_angle)
             else:
-                joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_pulse_open)
+                joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_open_angle)
             # print(joint_pulse_lengthes)
             numbers = self.pulse_length_to_byte(joint_pulse_lengthes)
             # print(numbers)   
