@@ -124,8 +124,28 @@ class robot_controller():
     # is this supposed to update the dh table?  
     def update_forward_kinematics(self):
         
-       
-       return 
+        # Initialize the transformation matrix as the base frame
+        T = self.base_frame
+        
+        # Loop through each joint to compute the transformation matrices
+        for j in range(self.joint_num):
+            a, alpha, d, _ = self.dh_params[j]  # Extract DH parameters
+            theta = self.robotstate_joint_poses[j] + self.angle_offsets[j]  # Use current joint positions
+            
+            # Compute transformation matrix for the current joint
+            T_link = self.dh_to_transformation_matrix(alpha, a, d, theta)
+            
+            # Update the cumulative transformation matrix
+            T = np.dot(T, T_link)
+            
+            # Store the transformation matrix for this joint
+            self.T_matrices[j] = T
+        
+        # Update the end-effector pose and orientation
+        self.robotstate_endeffector_pose = T[:3, 3]  # Extract position from the transformation matrix
+        self.robotState_endeffector_orientation = T[:3, :3]  # Extract rotation matrix
+     
+        return None 
 
 
 
