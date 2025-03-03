@@ -6,6 +6,7 @@ import sys
 np.set_printoptions(precision=2, suppress=False)
 np.set_printoptions(formatter={'all': lambda x: f'{x:.2f}'})
 
+
 class robot_controller():
     def __init__(self) -> None:
         #define robot parameter
@@ -115,10 +116,12 @@ class robot_controller():
     def dh_to_transformation_matrix(self, alpha, a, d, theta):
 
         return None
-    
+
+    # is this supposed to update the dh table?  
     def update_forward_kinematics(self):
-        
-       return None
+
+       #self.dh_params[[0] * 4]
+       return 
 
 
 
@@ -191,7 +194,7 @@ class robot_controller():
         reached_goal = False        
         # update the robot joint poses by adding the angle increments
         while not reached_goal:
-            start = time.time()
+            start = time.time() ## time function
             # print("Start Poses: ", start_poses)
             # print("angle difference: ", angle_diff)
 
@@ -238,7 +241,7 @@ class robot_controller():
                 dur = time.time() - start
                 time.sleep(np.clip((1/self.com_frequency)-dur-0.005, 0, (1/self.com_frequency)))#50Hz
 
-        # The function below control the end effector using the servo motor position
+    # The function below control the end effector using the servo motor position
     # 0 degree means the gripper is fully opened
     # -90 degree menas the gripper is fully closed
     def gripper_set_angle(self, angle):
