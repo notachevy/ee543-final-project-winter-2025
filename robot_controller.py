@@ -75,6 +75,7 @@ class robot_controller():
     ---------------------------------------------------------------
     """
 
+    #communication_module
     def communication_begin(self):
         self.ser = serial.Serial(self.com_port, self.com_baudrate)
         # Reset input/output buffer and wait for initialization
