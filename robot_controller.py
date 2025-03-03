@@ -109,6 +109,8 @@ class robot_controller():
 
     # input: DH parameters of a specific link, angle in degree, length in mm
     # output: the transformation matrix of that link
+
+    #Confused here: why do we not pass in a specific joint as a parameter???
     def dh_to_transformation_matrix(self, alpha, a, d, theta):
 
         return None
