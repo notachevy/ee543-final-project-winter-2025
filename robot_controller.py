@@ -114,13 +114,17 @@ class robot_controller():
 
     #Confused here: why do we not pass in a specific joint as a parameter??
     def dh_to_transformation_matrix(self, alpha, a, d, theta):
-
-        return None
+        return np.array([
+        [np.cos(theta), -np.sin(theta) * np.cos(alpha), np.sin(theta) * np.sin(alpha), a * np.cos(theta)],
+        [np.sin(theta), np.cos(theta) * np.cos(alpha), -np.cos(theta) * np.sin(alpha), a * np.sin(theta)],
+        [0, np.sin(alpha), np.cos(alpha), d],
+        [0, 0, 0, 1]
+        ])
 
     # is this supposed to update the dh table?  
     def update_forward_kinematics(self):
-
-       #self.dh_params[[0] * 4]
+        
+       
        return 
 
 
