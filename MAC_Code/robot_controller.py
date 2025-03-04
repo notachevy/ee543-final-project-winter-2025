@@ -30,7 +30,6 @@ class robot_controller():
          Below are the parameters related to robot link geometry
         ---------------------------------------------------------------
         """
-        ##
         #define the DH parameter for the arm link
         # [a, alpha, d, theta (will be replaced by joint_positions)]
         self.dh_params = [
