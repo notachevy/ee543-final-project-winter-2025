@@ -191,23 +191,23 @@ def plot_joint_frames(transforms, ax, axis_length=20):
         y_axis = R[:,1]
         z_axis = R[:,2]
 
-        # Plot a red arrow for X
+        # Plot a blue arrow for X
         ax.quiver(
             origin[0], origin[1], origin[2],
             x_axis[0], x_axis[1], x_axis[2],
-            color='r', length=axis_length, normalize=True
+            color='b', length=axis_length, normalize=True
         )
-        # Plot a green arrow for Y
-        ax.quiver(
-            origin[0], origin[1], origin[2],
-            y_axis[0], y_axis[1], y_axis[2],
-            color='g', length=axis_length, normalize=True
-        )
-        # Plot a blue arrow for Z
+        # # Plot a green arrow for Y
+        # ax.quiver(
+        #     origin[0], origin[1], origin[2],
+        #     y_axis[0], y_axis[1], y_axis[2],
+        #     color='g', length=axis_length, normalize=True
+        # )
+        # Plot a red arrow for Z
         ax.quiver(
             origin[0], origin[1], origin[2],
             z_axis[0], z_axis[1], z_axis[2],
-            color='b', length=axis_length, normalize=True
+            color='r', length=axis_length, normalize=True
         )
 
 def plot_arm_skeleton(transforms, ax):
@@ -218,12 +218,15 @@ def plot_arm_skeleton(transforms, ax):
     # Extract the (x,y,z) origin of each joint frame
     points = [T[0:3, 3] for T in transforms]
     points = np.array(points)  # shape: (n+1, 3)
-
+    plt_x_lim = [-200, 200]
+    plt_y_lim = [-200, 200]
+    plt_z_lim = [0, 300]
     xs = points[:,0]
     ys = points[:,1]
     zs = points[:,2]
-
-    # Draw the "links" as a polyline
+    ax.set_xlim(plt_x_lim)
+    ax.set_ylim(plt_y_lim)
+    ax.set_zlim(plt_z_lim)    
     ax.plot(xs, ys, zs, 'o-', color='k', linewidth=3, markersize=6)
 
 def plot_arm(link_positions, ax):
@@ -231,25 +234,27 @@ def plot_arm(link_positions, ax):
     link_positions: Nx3 array, with N=6 if you have 5 links
     ax: 3D axis
     """
+    plt_x_lim = [-200, 200]
+    plt_y_lim = [-200, 200]
+    plt_z_lim = [0, 300]
+    ax.set_xlim(plt_x_lim)
+    ax.set_ylim(plt_y_lim)
+    ax.set_zlim(plt_z_lim) 
+
     # Unpack coordinates for easy plotting
     xs = link_positions[:,0]
     ys = link_positions[:,1]
     zs = link_positions[:,2]
-
-    # Clear the old lines
     ax.cla()
 
     # Plot it as a line from 0->1->2->3->4->5
     ax.plot(xs, ys, zs, marker='o', linewidth=2, markersize=5)
 
-    # Optionally set axis labels
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     ax.set_title("Robot Arm Visualization")
 
-    # Set an equal aspect ratio if desired
-    # This can be tricky in matplotlib, but you can do a rough method:
     max_range = max(xs.max()-xs.min(), ys.max()-ys.min(), zs.max()-zs.min())
     mid_x = (xs.max()+xs.min()) * 0.5
     mid_y = (ys.max()+ys.min()) * 0.5
@@ -259,7 +264,6 @@ def plot_arm(link_positions, ax):
     ax.set_zlim(mid_z - 0.5*max_range, mid_z + 0.5*max_range)
 
 def main():
-    # Tell Python we want to use the global `last_key`
     global last_key
 
     # Setup figure for plotting
@@ -352,11 +356,11 @@ def main():
                     # Clip angles between -90 and +90
                     goals = np.clip(goals, RC.servo_angle_min, RC.servo_angle_max)
 
-                    # Move the real robot
+                    # Move the real robot29
                     RC.joints_goto(goals, speeds)
 
             # Update the simulation plot each loop 
-            link_positions = RC.get_link_positions()   # make sure you have get_link_positions in robot_controller
+            link_positio9ns = RC.get_link_positions()   # make sure you have get_link_positions in robot_controller
             # each loop iteration:
             transforms = RC.get_all_joint_transforms()
 

@@ -30,18 +30,18 @@ class robot_controller():
          Below are the parameters related to robot link geometry
         ---------------------------------------------------------------
         """
-
+        ##
         #define the DH parameter for the arm link
         # [a, alpha, d, theta (will be replaced by joint_positions)]
         self.dh_params = [
-            [0,    0,     0,    0],     # Joint 1 (revolute)
-            [0,  -90,  62.8,    0],     # Joint 2 (revolute)
+            [0,    0,  62.8,    0],     # Joint 1 (revolute)
+            [0,  90,      0,    0],     # Joint 2 (revolute)
             [101,  0,     0,    0],     # Joint 3 (revolute)
             [0,   90,  87.5,    0],     # Joint 4 (revolute)
             [0,    0,   125,    0]      # Fixed link from joint 4 to end-effector
         ]
 
-        self.angle_offsets = np.array([0, 0, 0, 0]) # this is for 4 joints setting
+        self.angle_offsets = np.array([0, 90, 90, 0]) # this is for 4 joints setting
 
         # the transformation matrices from first to last link 
         self.T_matrices = np.empty(self.joint_num) # no value when init
@@ -112,21 +112,21 @@ class robot_controller():
 
     # input: DH parameters of a specific link, angle in degree, length in mm
     # output: the transformation matrix of that link
-    def dh_to_transformation_matrix(self, alpha, a, d, theta):
-        """Convert DH parameters to a 4x4 transformation matrix"""
-        alpha_rad = np.radians(alpha)
-        theta_rad = np.radians(theta)
-        cos_theta = np.cos(theta_rad)
-        sin_theta = np.sin(theta_rad)
-        cos_alpha = np.cos(alpha_rad)
-        sin_alpha = np.sin(alpha_rad)
-        
+    def dh_to_transformation_matrix(self, alpha, a, d, theta, deg=True):
+        if deg:
+            alpha = np.deg2rad(alpha)
+            theta = np.deg2rad(theta)
+        ca = np.cos(alpha)
+        sa = np.sin(alpha)
+        ct = np.cos(theta)
+        st = np.sin(theta)
         T = np.array([
-            [cos_theta, -sin_theta * cos_alpha, sin_theta * sin_alpha, a * cos_theta],
-            [sin_theta, cos_theta * cos_alpha, -cos_theta * sin_alpha, a * sin_theta],
-            [0, sin_alpha, cos_alpha, d],
-            [0, 0, 0, 1]
-        ])
+            [   ct,       -st,        0,         a],
+            [st*ca,     ct*ca,      -sa,     -sa*d],
+            [st*sa,     ct*sa,       ca,      ca*d],
+            [    0,         0,        0,         1]
+        ], dtype=float)
+
         return T
     
     def update_forward_kinematics(self):
@@ -135,7 +135,7 @@ class robot_controller():
 
         # Insert the actual joint angles (plus any offset if needed)
         for i in range(self.joint_num):
-            dh[i, 3] = self.robotstate_joint_poses[i] + self.angle_offsets[i]
+            dh[[i], [3]] = self.robotstate_joint_poses[i] + self.angle_offsets[i]
         T_final = np.eye(4)
         for row in dh:
             a, alpha, d, theta = row
@@ -144,7 +144,6 @@ class robot_controller():
 
         self.robotstate_endeffector_pose = T_final[0:3, 3]
 
-        # orientation -> convert rotation matrix to e.g. ZYZ or XYZ Euler angles
         R = T_final[0:3, 0:3]
         beta = -np.asin(R[2,0])                      
         alpha =  np.atan2(R[2,1], R[2,2])            
@@ -186,7 +185,7 @@ class robot_controller():
         # Plot
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
-        ax.scatter(X, Y, Z, s=2)  # s=2 => small marker size
+        ax.scatter(X, Y, Z, s=2)
         ax.set_xlabel('X (mm)')
         ax.set_ylabel('Y (mm)')
         ax.set_zlabel('Z (mm)')
@@ -204,7 +203,7 @@ class robot_controller():
         points = [T[0:3, 3].copy()]  # base = [0, 0, 0]
 
         for row in dh:
-            alpha, a, d, theta = row
+            a, alpha, d, theta = row
             T_i = self.dh_to_transformation_matrix(alpha, a, d, theta)
             T = T @ T_i
             points.append(T[0:3, 3].copy())
