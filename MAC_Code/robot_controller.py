@@ -1,6 +1,7 @@
 import time
 import numpy as np
-import serial
+from scipy.spatial import ConvexHull
+#import serial
 import sys
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -21,6 +22,10 @@ class robot_controller():
         self.robotState_endeffector_orientation = np.zeros(3)
         self.robotstate_endeffector_pose = np.zeros(3)
         self.robotstate_gripper_close = False
+
+        self.workspaceX = np.array()
+        self.workspaceY = np.array()
+        self.workspaceZ = np.array()
 
         #define homing position in joint space
         self.robot_homing_joint_poses = np.zeros(self.joint_num)
@@ -181,6 +186,11 @@ class robot_controller():
         Y = np.array(Y)
         Z = np.array(Z)
 
+        global workspace_X, workspace_Y, workspace_Z
+        workspace_X = np.array(X)
+        workspace_Y = np.array(Y)
+        workspace_Z = np.array(Z)
+
         # Plot
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
@@ -190,6 +200,27 @@ class robot_controller():
         ax.set_zlabel('Z (mm)')
         plt.title("Monte Carlo Approximation of Robot Workspace")
         plt.show()
+
+    def check_test_points(self, points):
+        global workspace_X, workspace_Y, workspace_Z
+        if len(workspace_X) == 0 or len(workspace_Y) == 0 or len(workspace_Z) == 0:
+            raise ValueError("Workspace points not initialized. Run monte_carlo_workspace first.")
+    
+        workspace_points = np.vstack((workspace_X, workspace_Y, workspace_Z)).T
+        workspace_hull = ConvexHull(workspace_points)
+    
+        # Check if points are inside the convex hull
+        def is_inside_hull(point, hull):
+          return all((np.dot(eq[:-1], point) + eq[-1]) <= 0 for eq in hull.equations)
+            
+        results = []
+        for point in points:
+            if is_inside_hull(point, workspace_hull):
+                results.append("INSIDE")
+            else:
+                results.append("OUTSIDE")
+        return results
+
 
     def get_link_positions(self):
 
@@ -223,7 +254,8 @@ class robot_controller():
             T_base = T_base @ T_i
             transforms.append(T_base.copy())
 
-        return transforms  # e.g. len = # of rows in DH + 1             
+        return transforms  # e.g. len = # of rows in DH + 1    
+        
 
     """
     ---------------------------------------------------------------
