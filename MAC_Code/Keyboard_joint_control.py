@@ -360,7 +360,7 @@ def main():
                     RC.joints_goto(goals, speeds)
 
             # Update the simulation plot each loop 
-            link_positio9ns = RC.get_link_positions()   # make sure you have get_link_positions in robot_controller
+            link_positions = RC.get_link_positions()   # make sure you have get_link_positions in robot_controller
             # each loop iteration:
             transforms = RC.get_all_joint_transforms()
 
@@ -396,7 +396,13 @@ def main():
 if __name__ == "__main__":
 
     RC = robot_controller()
-    main()
+    testpoint1 = np.array([0.5, 0.6, 0.7])
+    testpoint2 = np.array([0.6, 0.8, 1.2])
+    testpoint3 = np.array([1.4, 2.5, 4.3])
+    RC.check_test_points(testpoint1)
+    RC.check_test_points(testpoint2)
+    RC.check_test_points(testpoint3)
+    ##main()
     RC.robotstate_joint_poses = np.array([0, 0, 0, 0])
     RC.update_forward_kinematics()
     print("End Effector Position:", RC.robotstate_endeffector_pose)
