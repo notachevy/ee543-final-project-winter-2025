@@ -3,6 +3,8 @@ import numpy as np
 import serial
 import sys
 
+from symbolic import *
+
 np.set_printoptions(precision=2, suppress=False)
 np.set_printoptions(formatter={'all': lambda x: f'{x:.2f}'})
 
@@ -30,17 +32,21 @@ class robot_controller():
 
         #define the DH parameter for the arm link
         # [a, alpha, d, theta (will be replaced by joint_positions)]
-        self.dh_params = [ # this is for 4 joints setting
-            [0, 0, 0, 0],  # Joint 1
-            [0, 0, 0, 0],  # Joint 2
-            [0, 0, 0, 0],  # Joint 3
-            [0, 0, 0, 0]   # Joint 4
+        self.dh_params = [
+            [0,    0,     0,    0],     # Joint 1 (revolute)
+            [0,   90,  62.8,    0],     # Joint 2 (revolute)
+            [101,  0,     0,    0],     # Joint 3 (revolute)
+            [0,   90,  87.5,    0],     # Joint 4 (revolute)
+            [0,    0,   125,    0]      # Fixed link from joint 4 to end-effector
         ]
 
         self.angle_offsets = np.array([0, 0, 0, 0]) # this is for 4 joints setting
 
         # the transformation matrices from first to last link 
         self.T_matrices = np.empty(self.joint_num) # no value when init
+
+        # the transformation matrix from the base frame to the end effector
+        self.T_end_effector = np.empty(self.joint_num)
 
         #define the base frame
         self.base_frame = np.eye(self.joint_num)
@@ -113,12 +119,22 @@ class robot_controller():
 
     #Confused here: why do we not pass in a specific joint as a parameter??
     def dh_to_transformation_matrix(self, alpha, a, d, theta):
-
-        return None
+        return Link_N(alpha, a, theta, d)
     
     def update_forward_kinematics(self):
-        
-       return None
+        T_final = np.eye(self.joint_num)
+        for i in range(self.joint_num):
+            self.dh_params[i][3] = self.robotstate_joint_poses[i] + self.angle_offsets[i]
+
+            a, alpha, d, theta = self.dh_params[i]
+            self.T_matrices[i] = self.dh_to_transformation_matrix(alpha, a, d, theta)
+            T_final = T_final @ self.T_matrices[i]
+
+        self.T_end_effector = T_final
+        self.robotstate_endeffector_pose = self.T_end_effector[0:3, 3]
+        self.robotState_endeffector_orientation = self.T_end_effector[0:3, 0:3]
+
+        return None
 
 
 
