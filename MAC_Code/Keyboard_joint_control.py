@@ -178,32 +178,22 @@ def print_no_newline(string):
     sys.stdout.flush()
 
 def plot_joint_frames(transforms, ax, axis_length=20):
-    """
-    For each transform ^0T_i in transforms,
-    draw x,y,z arrows of some length (in mm).
-    """
     for i, T in enumerate(transforms):
         origin = T[0:3, 3]
-        R = T[0:3, 0:3]  # rotation portion
-
-        # The 3 unit vectors in local frame i:
-        x_axis = R[:,0]  # (dx, dy, dz) of local X
+        R = T[0:3, 0:3] 
+        x_axis = R[:,0] 
         y_axis = R[:,1]
         z_axis = R[:,2]
-
-        # Plot a blue arrow for X
         ax.quiver(
             origin[0], origin[1], origin[2],
             x_axis[0], x_axis[1], x_axis[2],
             color='b', length=axis_length, normalize=True
         )
-        # # Plot a green arrow for Y
         # ax.quiver(
         #     origin[0], origin[1], origin[2],
         #     y_axis[0], y_axis[1], y_axis[2],
         #     color='g', length=axis_length, normalize=True
         # )
-        # Plot a red arrow for Z
         ax.quiver(
             origin[0], origin[1], origin[2],
             z_axis[0], z_axis[1], z_axis[2],
@@ -211,13 +201,8 @@ def plot_joint_frames(transforms, ax, axis_length=20):
         )
 
 def plot_arm_skeleton(transforms, ax):
-    """
-    transforms: list of 4x4 matrices [^0T_0, ^0T_1, ^0T_2, ... , ^0T_n].
-    ax: the 3D subplot
-    """
-    # Extract the (x,y,z) origin of each joint frame
     points = [T[0:3, 3] for T in transforms]
-    points = np.array(points)  # shape: (n+1, 3)
+    points = np.array(points)
     plt_x_lim = [-200, 200]
     plt_y_lim = [-200, 200]
     plt_z_lim = [0, 300]
@@ -230,24 +215,16 @@ def plot_arm_skeleton(transforms, ax):
     ax.plot(xs, ys, zs, 'o-', color='k', linewidth=3, markersize=6)
 
 def plot_arm(link_positions, ax):
-    """
-    link_positions: Nx3 array, with N=6 if you have 5 links
-    ax: 3D axis
-    """
     plt_x_lim = [-200, 200]
     plt_y_lim = [-200, 200]
     plt_z_lim = [0, 300]
     ax.set_xlim(plt_x_lim)
     ax.set_ylim(plt_y_lim)
     ax.set_zlim(plt_z_lim) 
-
-    # Unpack coordinates for easy plotting
     xs = link_positions[:,0]
     ys = link_positions[:,1]
     zs = link_positions[:,2]
     ax.cla()
-
-    # Plot it as a line from 0->1->2->3->4->5
     ax.plot(xs, ys, zs, marker='o', linewidth=2, markersize=5)
 
     ax.set_xlabel('X')
@@ -265,13 +242,9 @@ def plot_arm(link_positions, ax):
 
 def main():
     global last_key
-
-    # Setup figure for plotting
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
     plt.ion()
-
-    # Initialize
     RC = robot_controller()
     RC.communication_begin()
     RC.joints_homing()
@@ -351,29 +324,16 @@ def main():
                     print_no_newline("Grasper Close")
                     RC.gripper_close()
 
-                # If we changed any joint angles, move real robot & update plot
                 if command:
-                    # Clip angles between -90 and +90
                     goals = np.clip(goals, RC.servo_angle_min, RC.servo_angle_max)
-
-                    # Move the real robot29
                     RC.joints_goto(goals, speeds)
 
-            # Update the simulation plot each loop 
-            link_positions = RC.get_link_positions()   # make sure you have get_link_positions in robot_controller
-            # each loop iteration:
+            link_positions = RC.get_link_positions()
             transforms = RC.get_all_joint_transforms()
 
-            # 1) Clear axis
             ax.cla()
-
-            # 2) Plot the skeleton
             plot_arm_skeleton(transforms, ax)
-
-            # 3) Plot the joint frames
             plot_joint_frames(transforms, ax, axis_length=20)
-
-            # 4) Set labels, etc.
             ax.set_xlabel("X")
             ax.set_ylabel("Y")
             ax.set_zlabel("Z")
@@ -396,15 +356,12 @@ def main():
 if __name__ == "__main__":
 
     RC = robot_controller()
-    testpoint1 = np.array([0.5, 0.6, 0.7])
-    testpoint2 = np.array([0.6, 0.8, 1.2])
-    testpoint3 = np.array([1.4, 2.5, 4.3])
-    RC.check_test_points(testpoint1)
-    RC.check_test_points(testpoint2)
-    RC.check_test_points(testpoint3)
-    ##main()
+
+    main()
     RC.robotstate_joint_poses = np.array([0, 0, 0, 0])
     RC.update_forward_kinematics()
     print("End Effector Position:", RC.robotstate_endeffector_pose)
     print("End Effector Orientation (deg):", RC.robotState_endeffector_orientation)
-    RC.monte_carlo_workspace(N=10000)
+    RC.monte_carlo_workspace(N=5000)
+    test_points = [(70, 50, 100), (175, 150, 400), (180, 180, 200)]
+    RC.check_test_points(test_points) 

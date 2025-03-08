@@ -1,7 +1,7 @@
 import time
 import numpy as np
 from scipy.spatial import ConvexHull
-#import serial
+import serial
 import sys
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -23,9 +23,9 @@ class robot_controller():
         self.robotstate_endeffector_pose = np.zeros(3)
         self.robotstate_gripper_close = False
 
-        self.workspaceX = np.array()
-        self.workspaceY = np.array()
-        self.workspaceZ = np.array()
+        self.workspaceX = np.array([])
+        self.workspaceY = np.array([])
+        self.workspaceZ = np.array([])
 
         #define homing position in joint space
         self.robot_homing_joint_poses = np.zeros(self.joint_num)
@@ -135,9 +135,7 @@ class robot_controller():
     
     def update_forward_kinematics(self):
         """Calculate forward kinematics for all joints"""
-        dh = np.array(self.dh_params, dtype=float)  # shape: (5,4)
-
-        # Insert the actual joint angles (plus any offset if needed)
+        dh = np.array(self.dh_params, dtype=float)
         for i in range(self.joint_num):
             dh[[i], [3]] = self.robotstate_joint_poses[i] + self.angle_offsets[i]
         T_final = np.eye(4)
@@ -165,33 +163,19 @@ class robot_controller():
         X = []
         Y = []
         Z = []
-        # for each sample
         for _ in range(N):
-            # sample random angles from uniform [-90, 90]
             rand_angles = np.random.uniform(self.servo_angle_min, 
                                             self.servo_angle_max, 
                                             self.joint_num)
-            # put them in the robot state (temporarily)
             self.robotstate_joint_poses = rand_angles
-            # do forward kinematics
             self.update_forward_kinematics()
-            # collect the end-effector position
             ee_pos = self.robotstate_endeffector_pose
             X.append(ee_pos[0])
             Y.append(ee_pos[1])
             Z.append(ee_pos[2])
-
-        # Convert to arrays
-        X = np.array(X)
-        Y = np.array(Y)
-        Z = np.array(Z)
-
-        global workspace_X, workspace_Y, workspace_Z
-        workspace_X = np.array(X)
-        workspace_Y = np.array(Y)
-        workspace_Z = np.array(Z)
-
-        # Plot
+        self.workspaceX = np.array(X)
+        self.workspaceY = np.array(Y)
+        self.workspaceZ = np.array(Z)
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
         ax.scatter(X, Y, Z, s=2)
@@ -201,26 +185,55 @@ class robot_controller():
         plt.title("Monte Carlo Approximation of Robot Workspace")
         plt.show()
 
-    def check_test_points(self, points):
-        global workspace_X, workspace_Y, workspace_Z
-        if len(workspace_X) == 0 or len(workspace_Y) == 0 or len(workspace_Z) == 0:
+    def check_test_points(self, points, plot=True):
+        if len(self.workspaceX) == 0 or len(self.workspaceY) == 0 or len(self.workspaceZ) == 0:
             raise ValueError("Workspace points not initialized. Run monte_carlo_workspace first.")
-    
-        workspace_points = np.vstack((workspace_X, workspace_Y, workspace_Z)).T
-        workspace_hull = ConvexHull(workspace_points)
-    
-        # Check if points are inside the convex hull
-        def is_inside_hull(point, hull):
-          return all((np.dot(eq[:-1], point) + eq[-1]) <= 0 for eq in hull.equations)
-            
-        results = []
-        for point in points:
-            if is_inside_hull(point, workspace_hull):
-                results.append("INSIDE")
-            else:
-                results.append("OUTSIDE")
-        return results
 
+        workspace_points = np.vstack((self.workspaceX, self.workspaceY, self.workspaceZ)).T
+        workspace_hull = ConvexHull(workspace_points)
+
+        def is_inside_hull(point, hull):
+            return np.all([(np.dot(eq[:-1], point) + eq[-1]) <= 0 for eq in hull.equations])
+
+        results = []
+        inside_points = []
+        outside_points = []
+
+        for point in points:
+            status = "INSIDE" if is_inside_hull(point, workspace_hull) else "OUTSIDE"
+            results.append(f"{point} - {status}")
+            if status == "INSIDE":
+                inside_points.append(point)
+            else:
+                outside_points.append(point)
+
+        for result in results:
+            print(result)
+
+        if plot:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
+
+            ax.scatter(self.workspaceX, self.workspaceY, self.workspaceZ, s=2, alpha=0.3, label="Workspace")
+
+            if inside_points:
+                inside_points = np.array(inside_points)
+                ax.scatter(inside_points[:, 0], inside_points[:, 1], inside_points[:, 2], 
+                        c='g', marker='o', s=50, label="Inside Test Points")
+
+            if outside_points:
+                outside_points = np.array(outside_points)
+                ax.scatter(outside_points[:, 0], outside_points[:, 1], outside_points[:, 2], 
+                        c='r', marker='x', s=50, label="Outside Test Points")
+
+            ax.set_xlabel('X (mm)')
+            ax.set_ylabel('Y (mm)')
+            ax.set_zlabel('Z (mm)')
+            plt.title("Robot Workspace with Test Points")
+            plt.legend()
+            plt.show()
+
+        return results
 
     def get_link_positions(self):
 
@@ -230,7 +243,7 @@ class robot_controller():
 
         T = np.eye(4)
 
-        points = [T[0:3, 3].copy()]  # base = [0, 0, 0]
+        points = [T[0:3, 3].copy()]
 
         for row in dh:
             a, alpha, d, theta = row
@@ -248,13 +261,13 @@ class robot_controller():
         T_base = np.eye(4)
         transforms = [T_base]
 
-        for row in dh:  # for i in [0..(joint_num or joint_num+1)]
+        for row in dh:
             a, alpha, d, theta = row
             T_i = self.dh_to_transformation_matrix(alpha, a, d, theta)
             T_base = T_base @ T_i
             transforms.append(T_base.copy())
 
-        return transforms  # e.g. len = # of rows in DH + 1    
+        return transforms 
         
 
     """
