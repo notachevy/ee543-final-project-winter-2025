@@ -46,6 +46,7 @@ RC.communication_begin()
 # Force homing the robot
 RC.joints_homing()
 
+
 keyboard_increment = 0.5
 
 goals = np.zeros(RC.joint_num)

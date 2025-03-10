@@ -8,6 +8,7 @@ from symbolic import *
 np.set_printoptions(precision=2, suppress=False)
 np.set_printoptions(formatter={'all': lambda x: f'{x:.2f}'})
 
+
 class robot_controller():
     def __init__(self) -> None:
         #define robot parameter
@@ -119,22 +120,40 @@ class robot_controller():
 
     #Confused here: why do we not pass in a specific joint as a parameter??
     def dh_to_transformation_matrix(self, alpha, a, d, theta):
+        return np.array([
+        [np.cos(theta), -np.sin(theta) * np.cos(alpha), np.sin(theta) * np.sin(alpha), a * np.cos(theta)],
+        [np.sin(theta), np.cos(theta) * np.cos(alpha), -np.cos(theta) * np.sin(alpha), a * np.sin(theta)],
+        [0, np.sin(alpha), np.cos(alpha), d],
+        [0, 0, 0, 1]
+        ])
+
+    # is this supposed to update the dh table?  
         return Link_N(alpha, a, theta, d)
     
     def update_forward_kinematics(self):
-        T_final = np.eye(self.joint_num)
-        for i in range(self.joint_num):
-            self.dh_params[i][3] = self.robotstate_joint_poses[i] + self.angle_offsets[i]
-
-            a, alpha, d, theta = self.dh_params[i]
-            self.T_matrices[i] = self.dh_to_transformation_matrix(alpha, a, d, theta)
-            T_final = T_final @ self.T_matrices[i]
-
-        self.T_end_effector = T_final
-        self.robotstate_endeffector_pose = self.T_end_effector[0:3, 3]
-        self.robotState_endeffector_orientation = self.T_end_effector[0:3, 0:3]
-
-        return None
+        
+        # Initialize the transformation matrix as the base frame
+        T = self.base_frame
+        
+        # Loop through each joint to compute the transformation matrices
+        for j in range(self.joint_num):
+            a, alpha, d, _ = self.dh_params[j]  # Extract DH parameters
+            theta = self.robotstate_joint_poses[j] + self.angle_offsets[j]  # Use current joint positions
+            
+            # Compute transformation matrix for the current joint
+            T_link = self.dh_to_transformation_matrix(alpha, a, d, theta)
+            
+            # Update the cumulative transformation matrix
+            T = np.dot(T, T_link)
+            
+            # Store the transformation matrix for this joint
+            self.T_matrices[j] = T
+        
+        # Update the end-effector pose and orientation
+        self.robotstate_endeffector_pose = T[:3, 3]  # Extract position from the transformation matrix
+        self.robotState_endeffector_orientation = T[:3, :3]  # Extract rotation matrix
+     
+        return None 
 
 
 
@@ -207,7 +226,7 @@ class robot_controller():
         reached_goal = False        
         # update the robot joint poses by adding the angle increments
         while not reached_goal:
-            start = time.time()
+            start = time.time() ## time function
             # print("Start Poses: ", start_poses)
             # print("angle difference: ", angle_diff)
 
@@ -254,7 +273,7 @@ class robot_controller():
                 dur = time.time() - start
                 time.sleep(np.clip((1/self.com_frequency)-dur-0.005, 0, (1/self.com_frequency)))#50Hz
 
-        # The function below control the end effector using the servo motor position
+    # The function below control the end effector using the servo motor position
     # 0 degree means the gripper is fully opened
     # -90 degree menas the gripper is fully closed
     def gripper_set_angle(self, angle):
