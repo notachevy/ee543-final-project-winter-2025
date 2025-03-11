@@ -1,5 +1,16 @@
 from symbolic import *
 
+def ForwardK(dh_table):
+    t_final = np.matrix(np.eye(4))
+
+    for joint in dh_table:
+        # dh in alpha, a, d, theta
+        # link in alpha, a, theta, d
+        alpha, a, d, theta = joint
+        t_final = t_final @ Link_N(alpha, a, theta, d)
+
+    return t_final        
+
 if __name__ == "__main__":
     t1, t2, t3, t4 = sp.symbols("t1 t2 t3 t4")
     # Link_S(alpha, a, theta, d)
