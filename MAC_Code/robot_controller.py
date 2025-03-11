@@ -129,7 +129,7 @@ class robot_controller():
         for i in range(0, len(self.dh_params) - 1):
             dh_w_offset[i][3] = dh_w_offset[i][3] + self.angle_offsets[i]
 
-        res = minimize(objective_function, self.robotstate_endeffector_pose,
+        res = minimize(self.objective_function, self.robotstate_endeffector_pose,
                        args=(desired_pos, dh_w_offset), method="SLSQP")
         
         if res.success:
