@@ -357,11 +357,7 @@ if __name__ == "__main__":
 
     RC = robot_controller()
 
-    # main()
-
-    joints = RC.inversek_N([100, 100, 100])
-    print(joints)
-
+    main()
     RC.robotstate_joint_poses = np.array([0, 0, 0, 0])
     RC.update_forward_kinematics()
     print("End Effector Position:", RC.robotstate_endeffector_pose)
