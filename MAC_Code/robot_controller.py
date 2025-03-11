@@ -6,6 +6,7 @@ import sys
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from forward_k import *
+from scipy.optimize import minimize
 
 np.set_printoptions(precision=2, suppress=False)
 np.set_printoptions(formatter={'all': lambda x: f'{x:.2f}'})
@@ -53,8 +54,6 @@ class robot_controller():
 
         #define the base frame
         self.base_frame = np.eye(self.joint_num)
-
-        self.error = 
 
         """
         ---------------------------------------------------------------
@@ -117,9 +116,26 @@ class robot_controller():
     ---------------------------------------------------------------
     """
 
+    # input: desired position in [x, y, z]
+    # output: normalized distance between current end effector pose and desired position
     def objective_function(self, desired_pos):
         return np.linalg.norm(np.array(self.robotstate_endeffector_pose).astype(np.float64).flatten() -
                                np.array(desired_pos)) # error
+    
+    # input: desired position in [x, y, z]
+    # output: returns joint angles (TODO: in radians or degrees?)
+    def inversek_N(self, desired_pos):
+        dh_w_offset = np.copy(self.dh_params)
+        for i in range(0, len(self.dh_params) - 1):
+            dh_w_offset[i][3] = dh_w_offset[i][3] + self.angle_offsets[i]
+
+        res = minimize(objective_function, self.robotstate_endeffector_pose,
+                       args=(desired_pos, dh_w_offset), method="SLSQP")
+        
+        if res.success:
+            return res.x
+        else:
+            raise ValueError("Inverse kinematics did not converge :(")
 
     # input: DH parameters of a specific link, angle in degree, length in mm
     # output: the transformation matrix of that link
