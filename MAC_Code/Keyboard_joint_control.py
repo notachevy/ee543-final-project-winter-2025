@@ -145,7 +145,7 @@ import os
 from pynput import keyboard
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from robot_controller import robot_controller
+from robot_controller_win import robot_controller
 
 # Global variable to track the last key pressed
 last_key = None
