@@ -1,6 +1,6 @@
-from symbolic import *
+from MAC_Code.symbolic import *
 
-def ForwardK(dh_table):
+def ForwardK_N(dh_table):
     t_final = np.matrix(np.eye(4))
 
     for joint in dh_table:
@@ -9,7 +9,9 @@ def ForwardK(dh_table):
         alpha, a, d, theta = joint
         t_final = t_final @ Link_N(alpha, a, theta, d)
 
-    return t_final        
+    return t_final
+
+def Forwardk_S(dh_table):
 
 if __name__ == "__main__":
     t1, t2, t3, t4 = sp.symbols("t1 t2 t3 t4")
