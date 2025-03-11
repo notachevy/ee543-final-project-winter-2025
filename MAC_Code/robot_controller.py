@@ -5,6 +5,7 @@ import serial
 import sys
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from forward_k import *
 
 np.set_printoptions(precision=2, suppress=False)
 np.set_printoptions(formatter={'all': lambda x: f'{x:.2f}'})
@@ -53,6 +54,8 @@ class robot_controller():
         #define the base frame
         self.base_frame = np.eye(self.joint_num)
 
+        self.error = 
+
         """
         ---------------------------------------------------------------
          Below are the parameters related to hardware and communciation
@@ -65,10 +68,10 @@ class robot_controller():
         self.servo_pulse_max = 440 #+90 for mg996R, This is the 'maximum' pulse length count (out of 4096)
         self.servo_pulse_min = 70 #-90 for mg996R, This is the 'minimum' pulse length count (out of 4096)
 
-        #here defind the operating parameters for magnetic gripper
-        self.gripper_pulse_close = 4095 #This is the pulse length count (out of 4096) of 100% duty cycle
-        self.gripper_pulse_open = 0     #This is the pulse length count (out of 4096) of 0% duty cycle
-
+        # Here define the operating parameters for sliding gripper
+        # Slider gripper is also controlled by an MG996R servo motor
+        self.gripper_open_angle = 0 # degree
+        self.gripper_close_angle = -90 # degree
 
         #define the serial communication parameter
         self.com_port = '/dev/cu.usbserial-A5069RR4' # change it if needed
@@ -113,6 +116,10 @@ class robot_controller():
      forward kinematics
     ---------------------------------------------------------------
     """
+
+    def objective_function(self, desired_pos):
+        return np.linalg.norm(np.array(self.robotstate_endeffector_pose).astype(np.float64).flatten() -
+                               np.array(desired_pos)) # error
 
     # input: DH parameters of a specific link, angle in degree, length in mm
     # output: the transformation matrix of that link
