@@ -12,6 +12,13 @@ def ForwardK_N(dh_table):
     return t_final
 
 def Forwardk_S(dh_table):
+    t_final = np.matrix(np.eye(4))
+
+    for joint in dh_table:
+        alpha, a, d, theta = joint
+        t_final = t_final @ Link_S(alpha, a, theta, d)
+
+    return t_final
 
 if __name__ == "__main__":
     t1, t2, t3, t4 = sp.symbols("t1 t2 t3 t4")
