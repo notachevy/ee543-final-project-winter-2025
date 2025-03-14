@@ -6,7 +6,7 @@ def ForwardK_N(dh_table):
     for joint in dh_table:
         # dh in alpha, a, d, theta
         # link in alpha, a, theta, d
-        a, alpha, d, theta = joint
+        alpha, a, d, theta = joint
         t_final = t_final @ Link_N(alpha, a, theta, d)
 
     return t_final
@@ -15,7 +15,7 @@ def Forwardk_S(dh_table):
     t_final = np.matrix(np.eye(4))
 
     for joint in dh_table:
-        a, alpha, d, theta = joint
+        alpha, a, d, theta = joint
         t_final = t_final @ Link_S(alpha, a, theta, d)
 
     return t_final

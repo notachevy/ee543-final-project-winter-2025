@@ -8,6 +8,136 @@ Note: Modified code from Haonan Peng's Raven keyboard controller
 
 Original code: https://github.dev/uw-biorobotics/raven2_CRTK_Python_controller/blob/main/python_controller/run_r2_keyboard_controller.py
 """""""""""""""""""""""""""""
+
+# import time
+# import numpy as np
+# from pynput import keyboard
+# import sys, os
+# from robot_controller import robot_controller
+
+
+# def print_manu():
+#     print('  ')
+#     print('-----------------------------------------')
+#     print('EE543 Arm Keyboard Controller:')
+#     print('-----------------------------------------')
+#     print('[Exit]: 9')
+#     print('[Joint 1    +]: 1 | [Joint 1     -]: q')
+#     print('[Joint 2    +]: 2 | [Joint 2     -]: w')
+#     print('[Joint 3    +]: 3 | [Joint 3     -]: e')
+#     print('[Joint 4    +]: 4 | [Joint 4     -]: r')
+#     print('[Grasper Open]: 5 | [Grasper Close]: t')
+
+#     print('-----------------------------------------')
+#     print('-----------------------------------------')
+#     print('Current command:\n')
+#     return None
+
+# def print_no_newline(string):
+#     sys.stdout.write("\r" + string)
+#     sys.stdout.flush()
+#     return None
+
+
+# # init the Robot Controller
+# RC = robot_controller()
+# RC.communication_begin()
+
+# # Force homing the robot
+# RC.joints_homing()
+
+# keyboard_increment = 0.5
+
+# goals = np.zeros(RC.joint_num)
+# speeds = np.ones(RC.joint_num) * 80 # deg/s
+
+
+# x = 0
+# working = 1
+# command = False
+# print_manu()
+
+# while working==1:
+
+#     #get the keyboard input
+#     input_key = keyboard.read_event().name
+
+#     if input_key == '9':
+#         # RC.communication_end()
+#         os.system('cls' if os.name == 'nt' else 'clear')
+#         sys.exit('Closing Keyboard controller')
+        
+
+#     elif input_key == '1':
+#         print_no_newline(" Moving: Joint 1 +++         ")
+#         goals[0] += keyboard_increment
+#         command = True
+
+
+#     elif input_key == 'q':
+#         print_no_newline(" Moving: Joint 1 ---         ")
+#         goals[0] -= keyboard_increment
+#         command = True
+
+#     elif input_key == '2':
+#         print_no_newline(" Moving: Joint 2 +++         ")
+#         goals[1] += keyboard_increment
+#         command = True
+              
+#     elif input_key == 'w':
+#         print_no_newline(" Moving: Joint 2 ---         ")
+#         goals[1] -= keyboard_increment
+#         command = True
+
+#     elif input_key == '3':
+#         print_no_newline(" Moving: Joint 3 +++         ")
+#         goals[2] += keyboard_increment
+#         command = True
+        
+#     elif input_key == 'e':
+#         print_no_newline(" Moving: Joint 3 ---         ")
+#         goals[2] -= keyboard_increment
+#         command = True
+
+#     elif input_key == '4':
+#         print_no_newline(" Moving: Joint 4 +++         ")
+#         goals[3] += keyboard_increment
+#         command = True
+        
+#     elif input_key == 'r':
+#         print_no_newline(" Moving: Joint 4 ---         ")
+#         goals[3] -= keyboard_increment
+#         command = True
+    
+#     elif input_key == 'h':
+#         print_no_newline(" Homing....                  ")
+#         goals = RC.robot_homing_joint_poses.copy()
+#         command = True
+        
+#     elif input_key == '5':
+#         print_no_newline(" Grasper Open....                  ")
+#         RC.gripper_open()
+#         # goals = RC.robot_homing_joint_poses.copy()
+#         # command = True
+
+#     elif input_key == 't':
+#         print_no_newline(" Grasper Close....                  ")
+#         RC.gripper_close()
+#         # goals = RC.robot_homing_joint_poses.copy()
+#         # command = True
+
+#     else:
+#         print_no_newline(' Unknown command             ')
+
+    
+#     if command:
+#         # make sure the goals is within joint limit
+#         goals = np.clip(goals, RC.servo_angle_min, RC.servo_angle_max) 
+#         sys.stdout.write("\033[1B") # move curser down
+#         RC.joints_goto(goals, speeds)
+#         sys.stdout.write("\033[1A") # move curser up
+#         command = False
+
 import time
 import numpy as np
 import sys
@@ -48,30 +178,22 @@ def print_no_newline(string):
     sys.stdout.flush()
 
 def plot_joint_frames(transforms, ax, axis_length=20):
-    """
-    For each transform ^0T_i in transforms,
-    draw x,y,z arrows of some length (in mm).
-    """
     for i, T in enumerate(transforms):
         origin = T[0:3, 3]
-        R = T[0:3, 0:3]
-        x_axis = R[:,0]
+        R = T[0:3, 0:3] 
+        x_axis = R[:,0] 
         y_axis = R[:,1]
         z_axis = R[:,2]
-
-        # Plot a blue arrow for X
         ax.quiver(
             origin[0], origin[1], origin[2],
             x_axis[0], x_axis[1], x_axis[2],
             color='b', length=axis_length, normalize=True
         )
-        # # Plot a green arrow for Y
-        ax.quiver(
-            origin[0], origin[1], origin[2],
-            y_axis[0], y_axis[1], y_axis[2],
-            color='g', length=axis_length, normalize=True
-        )
-        # Plot a red arrow for Z
+        # ax.quiver(
+        #     origin[0], origin[1], origin[2],
+        #     y_axis[0], y_axis[1], y_axis[2],
+        #     color='g', length=axis_length, normalize=True
+        # )
         ax.quiver(
             origin[0], origin[1], origin[2],
             z_axis[0], z_axis[1], z_axis[2],
@@ -79,10 +201,6 @@ def plot_joint_frames(transforms, ax, axis_length=20):
         )
 
 def plot_arm_skeleton(transforms, ax):
-    """
-    transforms: list of 4x4 matrices [^0T_0, ^0T_1, ^0T_2, ... , ^0T_n].
-    ax: the 3D subplot
-    """
     points = [T[0:3, 3] for T in transforms]
     points = np.array(points)
     plt_x_lim = [-200, 200]
@@ -97,17 +215,12 @@ def plot_arm_skeleton(transforms, ax):
     ax.plot(xs, ys, zs, 'o-', color='k', linewidth=3, markersize=6)
 
 def plot_arm(link_positions, ax):
-    """
-    link_positions: Nx3 array, with N=6 if you have 5 links
-    ax: 3D axis
-    """
     plt_x_lim = [-200, 200]
     plt_y_lim = [-200, 200]
     plt_z_lim = [0, 300]
     ax.set_xlim(plt_x_lim)
     ax.set_ylim(plt_y_lim)
     ax.set_zlim(plt_z_lim) 
-
     xs = link_positions[:,0]
     ys = link_positions[:,1]
     zs = link_positions[:,2]
@@ -129,13 +242,9 @@ def plot_arm(link_positions, ax):
 
 def main():
     global last_key
-
-    # Setup figure for plotting
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
     plt.ion()
-
-    # Initialize
     RC = robot_controller()
     RC.communication_begin()
     RC.joints_homing()
@@ -149,14 +258,14 @@ def main():
     listener = keyboard.Listener(on_press=on_press)
     listener.start()
 
-    print_menu()
+    print_menu()  # If you want the menu
     print("Press 9 to exit, etc...")
 
     try:
         while True:
             if last_key is not None:
                 current_key = last_key
-                last_key = None
+                last_key = None  # Reset the global key after reading
                 command = False
 
                 if current_key == '9':
@@ -208,36 +317,23 @@ def main():
                     command = True
 
                 elif current_key == '5':
-                    print_no_newline(" Grasper Open....                  ")
-                    RC.gripper_set_percentage(0)
-                    
-                elif current_key == 't':
-                    print_no_newline(" Grasper Close....                  ")
-                    RC.gripper_set_percentage(100)
-                    
-                # If we changed any joint angles, move real robot & update plot
-                if command:
-                    # Clip angles between -90 and +90
-                    goals = np.clip(goals, RC.servo_angle_min, RC.servo_angle_max)
+                    print_no_newline("Grasper Open")
+                    RC.gripper_open()
 
-                    # Move the real robot29
+                elif current_key == 't':
+                    print_no_newline("Grasper Close")
+                    RC.gripper_close()
+
+                if command:
+                    goals = np.clip(goals, RC.servo_angle_min, RC.servo_angle_max)
                     RC.joints_goto(goals, speeds)
 
-            # Update the simulation plot each loop 
-            link_positions = RC.get_link_positions()   # make sure you have get_link_positions in robot_controller
-            # each loop iteration:
+            link_positions = RC.get_link_positions()
             transforms = RC.get_all_joint_transforms()
 
-            # 1) Clear axis
             ax.cla()
-
-            # 2) Plot the skeleton
             plot_arm_skeleton(transforms, ax)
-
-            # 3) Plot the joint frames
             plot_joint_frames(transforms, ax, axis_length=20)
-
-            # 4) Set labels, etc.
             ax.set_xlabel("X")
             ax.set_ylabel("Y")
             ax.set_zlabel("Z")
@@ -245,6 +341,7 @@ def main():
 
             plt.draw()
             plt.pause(0.01)
+
             time.sleep(0.01)  # to prevent CPU hogging
 
     except KeyboardInterrupt:
@@ -259,73 +356,12 @@ def main():
 if __name__ == "__main__":
 
     RC = robot_controller()
-    '''
-    --------------------------------------------------------------------
-    Normal Functions - Keyboard Joint Control
-                     - Forward Kinematic Simulation
-                     - Monte-Carlo Workspace with Test-Points
-    -------------------------------------------------------------------- 
-    '''
-    # main()
-    # #RC.robotstate_joint_poses = np.array([0, 0, 0, 0])
-    # RC.update_forward_kinematics()
-    # print("End Effector Position:", RC.robotstate_endeffector_pose)
-    # print("End Effector Orientation (deg):", RC.robotState_endeffector_orientation)
-    # RC.monte_carlo_workspace(N=10000)
-    # test_points = [(70, 50, 100), (175, 150, 400), (180, 180, 200)]
-    # RC.check_test_points(test_points) 
 
-    '''
-    --------------------------------------------------------------------
-    Position Control in Cartesian Space - Home position to [x, y, z] 
-    point within workspace 
-    -------------------------------------------------------------------- 
-    '''
-    # RC.communication_begin()
-    # RC.joints_homing()
-    # RC.update_forward_kinematics()
-    # time.sleep(1.5)
-
-    #current_pos = RC.robotstate_endeffector_pose
-
-    # desired_pos = [217.60, 125.63, -87.46]
-
-    # # Solve IK
-    # optimized_angles = RC.inverse_kinematics(desired_pos)
-
-    # if optimized_angles is not None:
-    #     # Move to the optimized joint angles with a speed of 10 degrees/sec per joint
-    #     speeds = np.array([5, 5, 5, 5], dtype=float)
-    #     RC.joints_goto(optimized_angles, speeds)
-    #     # Update the end-effector position after movement
-    #     RC.update_forward_kinematics()
-    #     print("New end-effector position:", RC.robotstate_endeffector_pose)
-    # else:
-    #     print("IK solution not found.")
-
-    # #joints = RC.inversek_N(RC.robotstate_endeffector_pose + [20, 0, 0])
-    # joints = RC.inversek_N([200, 200, 200])
-    # print(joints)
-    # #joints = np.clip(joints, -90, 90)
-    # #speeds = np.array([5, 5, 5, 5], dtype=float)
-    # #RC.joints_goto(joints, speeds)
-    '''
-    --------------------------------------------------------------------
-    Object Pickup & Drop Function - Home position to [x, y, z] point 
-                                    within workspace to pick up the 
-                                    object (Gripper Close)
-                                  - [x, y, z] point to [a, b, c] point 
-                                    within the workspace to drop the 
-                                    object (Gripper Open)
-    -------------------------------------------------------------------- 
-    '''
-    RC.communication_begin()
-    RC.joints_homing()
+    main()
+    RC.robotstate_joint_poses = np.array([0, 0, 0, 0])
     RC.update_forward_kinematics()
-    time.sleep(1.5)
-
-    pickup_pos = [215, 120, -60]
-    dropoff_pos = [-350, -280, 250]
-
-    RC.execute_pick_and_place(pickup_pos, dropoff_pos)
-    RC.communication_end()
+    print("End Effector Position:", RC.robotstate_endeffector_pose)
+    print("End Effector Orientation (deg):", RC.robotState_endeffector_orientation)
+    RC.monte_carlo_workspace(N=5000)
+    test_points = [(70, 50, 100), (175, 150, 400), (180, 180, 200)]
+    RC.check_test_points(test_points) 
