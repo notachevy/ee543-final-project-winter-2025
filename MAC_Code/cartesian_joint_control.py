@@ -142,6 +142,7 @@ import time
 import numpy as np
 import sys
 import os
+from symbolic import *
 from pynput import keyboard
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -357,10 +358,7 @@ if __name__ == "__main__":
 
     RC = robot_controller()
 
-    # main()
-
-    joints = RC.inversek_N([100, 100, 100])
-    print(joints)
+    main()
 
     RC.robotstate_joint_poses = np.array([0, 0, 0, 0])
     RC.update_forward_kinematics()
@@ -369,3 +367,5 @@ if __name__ == "__main__":
     RC.monte_carlo_workspace(N=5000)
     test_points = [(70, 50, 100), (175, 150, 400), (180, 180, 200)]
     RC.check_test_points(test_points) 
+    joints = RC.inversek_N([70, 50, 100])
+    print(joints)

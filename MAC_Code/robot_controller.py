@@ -1,20 +1,18 @@
 import time
 import numpy as np
-from scipy.spatial import ConvexHull
 import serial
 import sys
+from scipy.spatial import ConvexHull
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from forward_k import *
 from scipy.optimize import minimize
-
 np.set_printoptions(precision=2, suppress=False)
 np.set_printoptions(formatter={'all': lambda x: f'{x:.2f}'})
 
 class robot_controller():
     def __init__(self) -> None:
         #define robot parameter
-        #self.simulation_mode = True
         self.joint_num = 4
         self.joints_goto_tolerance = 10e-3
 
@@ -25,10 +23,6 @@ class robot_controller():
         self.robotstate_endeffector_pose = np.zeros(3)
         self.robotstate_gripper_close = False
 
-        self.workspaceX = np.array([])
-        self.workspaceY = np.array([])
-        self.workspaceZ = np.array([])
-
         #define homing position in joint space
         self.robot_homing_joint_poses = np.zeros(self.joint_num)
 
@@ -37,11 +31,12 @@ class robot_controller():
          Below are the parameters related to robot link geometry
         ---------------------------------------------------------------
         """
+
         #define the DH parameter for the arm link
         # [a, alpha, d, theta (will be replaced by joint_positions)]
         self.dh_params = [
             [0,    0,  62.8,    0],     # Joint 1 (revolute)
-            [0,  90,      0,    0],     # Joint 2 (revolute)
+            [0,   90,     0,    0],     # Joint 2 (revolute)
             [101,  0,     0,    0],     # Joint 3 (revolute)
             [0,   90,  87.5,    0],     # Joint 4 (revolute)
             [0,    0,   125,    0]      # Fixed link from joint 4 to end-effector
@@ -71,6 +66,10 @@ class robot_controller():
         # Slider gripper is also controlled by an MG996R servo motor
         self.gripper_open_angle = 0 # degree
         self.gripper_close_angle = -90 # degree
+        
+        # Pre-compute the servo pulse lengths for convenience
+        self.gripper_pulse_open = self.angle_to_pulse_length(np.array([self.gripper_open_angle]))[0]
+        self.gripper_pulse_close = self.angle_to_pulse_length(np.array([self.gripper_close_angle]))[0]
 
         #define the serial communication parameter
         self.com_port = '/dev/cu.usbserial-A5069RR4' # change it if needed
@@ -99,7 +98,7 @@ class robot_controller():
         # Send signaling byte
         self.ser.write(b'S')
         time.sleep(0.1)
-    
+        
     def communication_end(self):
         self.ser.close()
 
@@ -115,27 +114,6 @@ class robot_controller():
      forward kinematics
     ---------------------------------------------------------------
     """
-
-    # input: desired position in [x, y, z]
-    # output: normalized distance between current end effector pose and desired position
-    def objective_function(self, desired_pos):
-        return np.linalg.norm(np.array(self.robotstate_endeffector_pose).astype(np.float64).flatten() -
-                               np.array(desired_pos)) # error
-    
-    # input: desired position in [x, y, z]
-    # output: returns joint angles (TODO: in radians or degrees?)
-    def inversek_N(self, desired_pos):
-        dh_w_offset = np.copy(self.dh_params)
-        for i in range(0, len(self.dh_params) - 1):
-            dh_w_offset[i][3] = dh_w_offset[i][3] + self.angle_offsets[i]
-
-        res = minimize(self.objective_function(desired_pos), self.robotstate_endeffector_pose,
-                       args=(desired_pos, dh_w_offset), method="SLSQP")
-        
-        if res.success:
-            return res.x
-        else:
-            raise ValueError("Inverse kinematics did not converge :(")
 
     # input: DH parameters of a specific link, angle in degree, length in mm
     # output: the transformation matrix of that link
@@ -155,6 +133,18 @@ class robot_controller():
         ], dtype=float)
 
         return T
+    
+    def ForwardK_N(self, joint_angles_deg):
+        """Compute the forward kinematics transformation matrix for given joint angles (in degrees)."""
+        dh = np.array(self.dh_params, dtype=float)
+        for i in range(self.joint_num):
+            dh[i, 3] = joint_angles_deg[i] + self.angle_offsets[i]
+        T_final = np.eye(4)
+        for row in dh:
+            a, alpha, d, theta = row
+            T_i = self.dh_to_transformation_matrix(alpha, a, d, theta)
+            T_final = T_final @ T_i
+        return T_final
     
     def update_forward_kinematics(self):
         """Calculate forward kinematics for all joints"""
@@ -178,6 +168,40 @@ class robot_controller():
             np.degrees(beta),
             np.degrees(gamma)
         ])
+        
+    def get_link_positions(self):
+
+        dh = np.array(self.dh_params, dtype=float)
+        for i in range(self.joint_num):
+            dh[i, 3] = self.robotstate_joint_poses[i] + self.angle_offsets[i]
+
+        T = np.eye(4)
+
+        points = [T[0:3, 3].copy()]
+
+        for row in dh:
+            a, alpha, d, theta = row
+            T_i = self.dh_to_transformation_matrix(alpha, a, d, theta)
+            T = T @ T_i
+            points.append(T[0:3, 3].copy())
+
+        return np.array(points)
+
+    def get_all_joint_transforms(self):
+        dh = np.array(self.dh_params, dtype=float)
+        for i in range(self.joint_num):
+            dh[i, 3] = self.robotstate_joint_poses[i] + self.angle_offsets[i]
+
+        T_base = np.eye(4)
+        transforms = [T_base]
+
+        for row in dh:
+            a, alpha, d, theta = row
+            T_i = self.dh_to_transformation_matrix(alpha, a, d, theta)
+            T_base = T_base @ T_i
+            transforms.append(T_base.copy())
+
+        return transforms
 
     def monte_carlo_workspace(self, N=2000):
         """
@@ -257,41 +281,76 @@ class robot_controller():
             plt.show()
 
         return results
-
-    def get_link_positions(self):
-
-        dh = np.array(self.dh_params, dtype=float)
-        for i in range(self.joint_num):
-            dh[i, 3] = self.robotstate_joint_poses[i] + self.angle_offsets[i]
-
-        T = np.eye(4)
-
-        points = [T[0:3, 3].copy()]
-
-        for row in dh:
-            a, alpha, d, theta = row
-            T_i = self.dh_to_transformation_matrix(alpha, a, d, theta)
-            T = T @ T_i
-            points.append(T[0:3, 3].copy())
-
-        return np.array(points)
-
-    def get_all_joint_transforms(self):
-        dh = np.array(self.dh_params, dtype=float)
-        for i in range(self.joint_num):
-            dh[i, 3] = self.robotstate_joint_poses[i] + self.angle_offsets[i]
-
-        T_base = np.eye(4)
-        transforms = [T_base]
-
-        for row in dh:
-            a, alpha, d, theta = row
-            T_i = self.dh_to_transformation_matrix(alpha, a, d, theta)
-            T_base = T_base @ T_i
-            transforms.append(T_base.copy())
-
-        return transforms 
+    
+    def InverseK_N(self, desired_pos, initial_guess=None, max_iterations=100):
+        """
+            Solve inverse kinematics for desired EE position.
+        """
+        # Setting Initial Guess as the current Joint Pose of the Arm
+        if initial_guess is None:
+            initial_guess = self.robotstate_joint_poses.copy()
+        #Desired Position Format declared for me to input    
+        desired_pos = np.array(desired_pos, dtype=np.float64).flatten()
         
+        def objective(joint_angles):
+            #Step 1: Compute Forward Kinematics
+            FK_N = self.ForwardK_N(joint_angles)
+            #Step 2: Extract the current end-effector positionfrom 4th column of 1st 3 rows
+            current_pos = FK_N[:3, 3]
+            #Step 3: Calculate the Euclidean Distance between current position and desired position
+            error = np.linalg.norm(current_pos - desired_pos)
+            return error
+        #Clipping the servo angles from their min-max ranges for the IK to give correct angles within the limits
+        bounds = [(self.servo_angle_min, self.servo_angle_max) for _ in range(self.joint_num)]
+        
+        #Minimize - Generic optimization Routine as in manual
+        res = minimize(objective, initial_guess, method='SLSQP', bounds=bounds, options={'maxiter': max_iterations, 'ftol': 1e-6})
+        
+        if res.success:
+            limit_angles = np.clip(res.x, self.servo_angle_min, self.servo_angle_max)
+            return limit_angles
+        else:
+            print(f"IK failed: {res.message}")
+            return None
+
+    def pick_and_drop(self, pick_p, drop_p):
+        # Step 1: Move to pickup position
+        pick_angles = self.InverseK_N(pick_p)
+        if pick_angles is None:
+            print("Failed to compute IK for pickup position.")
+            return
+        
+        print(f"Moving to pickup point: {pick_p}")
+        speeds = np.array([5, 5, 5, 5], dtype=float)
+        self.joints_goto(pick_angles, speeds * self.joint_num)
+        
+        self.update_forward_kinematics()
+        print(f"Current location: {self.robotstate_endeffector_pose}")
+
+        # Step 2: Close gripper
+        print("Closing gripper.")
+        self.gripper_set_angle(self.gripper_close_angle)
+        self.robotstate_gripper_close = True
+        time.sleep(1)
+
+        # Step 3: Move to drop point
+        drop_angles = self.InverseK_N(drop_p)
+        if drop_angles is None:
+            print("Failed to compute IK for dropoff position.")
+            return
+        
+        print(f"Moving to dropoff position: {drop_p}")
+        speeds = np.array([5, 5, 5, 5], dtype=float)
+        self.joints_goto(drop_angles, speeds * self.joint_num)
+
+        self.update_forward_kinematics()
+        print(f"Current position: {self.robotstate_endeffector_pose}")
+
+        # Step 4: Open gripper
+        print("Opening gripper.")
+        self.gripper_set_angle(self.gripper_open_angle)
+        self.robotstate_gripper_close = False
+        time.sleep(1)
 
     """
     ---------------------------------------------------------------
@@ -409,54 +468,44 @@ class robot_controller():
                 dur = time.time() - start
                 time.sleep(np.clip((1/self.com_frequency)-dur-0.005, 0, (1/self.com_frequency)))#50Hz
 
-    # The function below control the end effector
-    def gripper_open(self):
-        #modify the robot state
-        self.robotstate_gripper_close = False
+        # The function below control the end effector using the servo motor position
+    # 0 degree means the gripper is fully opened
+    # -90 degree menas the gripper is fully closed
+    def gripper_set_angle(self, angle):
+        # Clip the angle within operating range
+        angle = np.clip(angle, self.gripper_close_angle, self.gripper_open_angle)
 
-        #send out the command
-        #convert the joint_pose to pulse length
+        # Convert angle to pulse length
+        pulse_length = self.angle_to_pulse_length(angle)
+        
+        # Store gripper angle
+        self.robotstate_gripper_angle = angle
+
+        # Send the pulse length command to the gripper
         joint_pulse_lengthes = self.angle_to_pulse_length(self.robotstate_joint_poses)
 
-        #add one more byte in the pulse length array to as gripper command
-        if self.robotstate_gripper_close:
-            joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_pulse_close)
-        else:
-            joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_pulse_open)
-        # print(joint_pulse_lengthes)
-        numbers = self.pulse_length_to_byte(joint_pulse_lengthes)
-        # print(numbers)   
+        # Add gripper angle to the pulse length array
+        joint_pulse_lengthes = np.append(joint_pulse_lengthes, pulse_length)
 
-        # Poll for acknowledgement
+        # Convert to bytes and send
+        numbers = self.pulse_length_to_byte(joint_pulse_lengthes)
+        
+        # Poll for acknowledgment
         while self.ser.in_waiting == 0:
             continue
 
-        # Send data if acknowledgement received
+        # Send data if acknowledgment received
         if self.ser.read() == b'A':
             self.ser.write(numbers)
             self.ser.flush()
 
-    def gripper_close(self):
-        #modify the robot state
-        self.robotstate_gripper_close = True
-        #send out the command
-        #convert the joint_pose to pulse length
-        joint_pulse_lengthes = self.angle_to_pulse_length(self.robotstate_joint_poses)
+    # The function below control the end effector using the percentage
+    # 0% means the gripper is fully opened
+    # 100% menas the gripper is fully closed
+    def gripper_set_percentage(self, percentage):
+        percentage = np.clip(percentage, 0, 100)
 
-        #add one more byte in the pulse length array to as gripper command
-        if self.robotstate_gripper_close:
-            joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_pulse_close)
-        else:
-            joint_pulse_lengthes = np.append(joint_pulse_lengthes,self.gripper_pulse_open)
-        # print(joint_pulse_lengthes)
-        numbers = self.pulse_length_to_byte(joint_pulse_lengthes)
-        # print(numbers)   
+        # convert the percentage into angle
+        angle = percentage * (self.gripper_close_angle - self.gripper_open_angle) / 100
 
-        # Poll for acknowledgement
-        while self.ser.in_waiting == 0:
-            continue
-
-        # Send data if acknowledgement received
-        if self.ser.read() == b'A':
-            self.ser.write(numbers)
-            self.ser.flush()
+        self.gripper_set_angle(angle)
